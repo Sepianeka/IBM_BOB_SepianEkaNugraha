@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wanderlytics – Tourism Intelligence Dashboard</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Tailwind custom config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:    { DEFAULT: '#0f2044', 700: '#0a1833', 800: '#07122a', 900: '#040c1c' },
+            teal:    { DEFAULT: '#0d9488', light: '#14b8a6', dark: '#0f766e' },
+            turq:    { DEFAULT: '#06b6d4', light: '#22d3ee', dark: '#0891b2' },
+            cream:   { DEFAULT: '#fef9f0', warm: '#fdf4e3' },
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+        }
+      }
+    };
+  </script>
+</head>
+
+<body class="bg-cream font-sans antialiased text-gray-800">
+
+  <!-- =========================================================
+       MOBILE SIDEBAR OVERLAY
+  ========================================================== -->
+  <div id="sidebarOverlay"
+       class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"
+       role="presentation"
+       aria-hidden="true"></div>
+
+  <!-- =========================================================
+       SIDEBAR
+  ========================================================== -->
+  <aside id="sidebar"
+         role="navigation"
+         aria-label="Sidebar navigasi utama"
+         class="sidebar fixed top-0 left-0 h-full w-64 z-50 flex flex-col
+                -translate-x-full lg:translate-x-0 transition-transform duration-300">
+
+    <!-- Brand -->
+    <div class="sidebar-brand flex items-center gap-3 px-6 py-5 border-b border-white/10">
+      <div class="brand-icon flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl">
+        🧭
+      </div>
+      <div>
+        <h1 class="text-white font-bold text-base leading-tight">Wanderlytics</h1>
+        <p class="text-white/50 text-xs">Tourism Intelligence</p>
+      </div>
+    </div>
+
+    <!-- Nav links -->
+    <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto" aria-label="Menu navigasi">
+      <a href="#overview"   class="nav-link active" data-section="overview">
+        <span class="nav-icon">📊</span> Overview
+      </a>
+      <a href="#visitors"   class="nav-link" data-section="visitors">
+        <span class="nav-icon">👥</span> Visitors
+      </a>
+      <a href="#revenue"    class="nav-link" data-section="revenue">
+        <span class="nav-icon">💰</span> Revenue
+      </a>
+      <a href="#bookings"   class="nav-link" data-section="bookings">
+        <span class="nav-icon">📋</span> Bookings
+      </a>
+      <a href="#destinations" class="nav-link" data-section="destinations">
+        <span class="nav-icon">📍</span> Destinations
+      </a>
+    </nav>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-white/10">
+      <p class="text-white/30 text-xs text-center">Data period: 2024</p>
+    </div>
+  </aside>
+
+  <!-- =========================================================
+       MAIN CONTENT WRAPPER
+  ========================================================== -->
+  <div class="lg:ml-64 flex flex-col min-h-screen">
+
+    <!-- =====================================================
+         TOP HEADER / NAVBAR
+    ====================================================== -->
+    <header class="top-header sticky top-0 z-30 flex items-center justify-between px-5 py-3 border-b border-gray-200"
+            role="banner">
+
+      <!-- Mobile menu toggle -->
+      <button id="menuToggle"
+              aria-label="Buka menu sidebar"
+              aria-expanded="false"
+              aria-controls="sidebar"
+              class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+
+      <!-- Page title -->
+      <div class="flex items-center gap-3">
+        <span class="hidden sm:block text-sm text-gray-500 font-medium">Tourism Intelligence Dashboard</span>
+        <span id="lastUpdated" class="badge-pill text-xs px-3 py-1 rounded-full font-medium"></span>
+      </div>
+
+      <!-- Right section: data status -->
+      <div class="flex items-center gap-2">
+        <span id="dataStatus" class="flex items-center gap-1.5 text-xs font-medium">
+          <span class="status-dot w-2 h-2 rounded-full bg-gray-300 inline-block"></span>
+          <span class="status-label text-gray-400">Loading…</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- =====================================================
+         MAIN AREA
+    ====================================================== -->
+    <main id="mainContent" class="flex-1 px-4 sm:px-6 py-6 space-y-8" role="main">
+
+      <!-- Loading state -->
+      <div id="loadingState" class="flex flex-col items-center justify-center py-24 gap-4" aria-live="polite">
+        <div class="spinner w-10 h-10 rounded-full border-4 border-teal/20 border-t-teal animate-spin"></div>
+        <p class="text-gray-500 text-sm">Memuat data pariwisata…</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="errorState" class="hidden flex-col items-center justify-center py-24 gap-4 text-center" aria-live="assertive">
+        <div class="text-5xl">⚠️</div>
+        <h2 class="text-lg font-semibold text-gray-700">Gagal Memuat Data</h2>
+        <p id="errorMessage" class="text-sm text-gray-500 max-w-sm"></p>
+        <button id="retryBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-medium mt-2">
+          Coba Lagi
+        </button>
+      </div>
+
+      <!-- Dashboard content (hidden until data loads) -->
+      <div id="dashboardContent" class="hidden space-y-8">
+
+        <!-- ============================================
+             SECTION: FILTERS
+        ============================================= -->
+        <section aria-labelledby="filterHeading" class="filter-card rounded-2xl p-5">
+          <h2 id="filterHeading" class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            🎛️ Filter Data
+          </h2>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+            <!-- Region filter -->
+            <div class="flex flex-col gap-1">
+              <label for="filterRegion" class="text-xs font-medium text-gray-600">Region</label>
+              <select id="filterRegion" class="filter-select rounded-xl px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal/50" aria-label="Filter berdasarkan region">
+                <option value="all">Semua Region</option>
+              </select>
+            </div>
+
+            <!-- Category filter -->
+            <div class="flex flex-col gap-1">
+              <label for="filterCategory" class="text-xs font-medium text-gray-600">Kategori Destinasi</label>
+              <select id="filterCategory" class="filter-select rounded-xl px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal/50" aria-label="Filter berdasarkan kategori destinasi">
+                <option value="all">Semua Kategori</option>
+              </select>
+            </div>
+
+            <!-- Visitor Type filter -->
+            <div class="flex flex-col gap-1">
+              <label for="filterVisitorType" class="text-xs font-medium text-gray-600">Tipe Wisatawan</label>
+              <select id="filterVisitorType" class="filter-select rounded-xl px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal/50" aria-label="Filter berdasarkan tipe wisatawan">
+                <option value="all">Semua Tipe</option>
+              </select>
+            </div>
+
+            <!-- Booking Channel filter -->
+            <div class="flex flex-col gap-1">
+              <label for="filterChannel" class="text-xs font-medium text-gray-600">Channel Booking</label>
+              <select id="filterChannel" class="filter-select rounded-xl px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal/50" aria-label="Filter berdasarkan channel booking">
+                <option value="all">Semua Channel</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Reset filter -->
+          <div class="mt-3 flex justify-end">
+            <button id="resetFilters" class="btn-secondary text-xs px-4 py-1.5 rounded-lg font-medium transition-colors">
+              Reset Filter
+            </button>
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: KPI CARDS
+        ============================================= -->
+        <section aria-labelledby="kpiHeading">
+          <h2 id="kpiHeading" class="sr-only">Key Performance Indicators</h2>
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+            <article class="kpi-card rounded-2xl p-5" aria-label="Total Visitors">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="kpi-label text-xs font-semibold uppercase tracking-wider mb-1">Total Visitors</p>
+                  <p id="kpiVisitors" class="kpi-value text-2xl sm:text-3xl font-bold leading-none">—</p>
+                  <p id="kpiVisitorsSub" class="text-xs mt-1.5 opacity-70">orang berwisata</p>
+                </div>
+                <div class="kpi-icon kpi-icon-1 w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                  👥
+                </div>
+              </div>
+            </article>
+
+            <article class="kpi-card rounded-2xl p-5" aria-label="Total Revenue">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="kpi-label text-xs font-semibold uppercase tracking-wider mb-1">Total Revenue</p>
+                  <p id="kpiRevenue" class="kpi-value text-2xl sm:text-3xl font-bold leading-none">—</p>
+                  <p id="kpiRevenueSub" class="text-xs mt-1.5 opacity-70">pendapatan total</p>
+                </div>
+                <div class="kpi-icon kpi-icon-2 w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                  💰
+                </div>
+              </div>
+            </article>
+
+            <article class="kpi-card rounded-2xl p-5" aria-label="Total Bookings">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="kpi-label text-xs font-semibold uppercase tracking-wider mb-1">Total Bookings</p>
+                  <p id="kpiBookings" class="kpi-value text-2xl sm:text-3xl font-bold leading-none">—</p>
+                  <p id="kpiBookingsSub" class="text-xs mt-1.5 opacity-70">transaksi booking</p>
+                </div>
+                <div class="kpi-icon kpi-icon-3 w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                  📋
+                </div>
+              </div>
+            </article>
+
+            <article class="kpi-card rounded-2xl p-5" aria-label="Average Length of Stay">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="kpi-label text-xs font-semibold uppercase tracking-wider mb-1">Avg. Length of Stay</p>
+                  <p id="kpiAvgStay" class="kpi-value text-2xl sm:text-3xl font-bold leading-none">—</p>
+                  <p id="kpiAvgStaySub" class="text-xs mt-1.5 opacity-70">hari rata-rata</p>
+                </div>
+                <div class="kpi-icon kpi-icon-4 w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                  🌙
+                </div>
+              </div>
+            </article>
+
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: CHART ROW 1 — Trend & Revenue Region
+        ============================================= -->
+        <section aria-labelledby="charts1Heading" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <h2 id="charts1Heading" class="sr-only">Tren Pengunjung & Pendapatan per Region</h2>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">📈 Visitor Trend (Bulanan)</h3>
+            <p class="text-xs text-gray-400 mb-4">Jumlah wisatawan per bulan sepanjang 2024</p>
+            <div class="chart-container">
+              <canvas id="chartVisitorTrend" aria-label="Grafik tren pengunjung bulanan" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🗺️ Revenue per Region</h3>
+            <p class="text-xs text-gray-400 mb-4">Total pendapatan berdasarkan wilayah</p>
+            <div class="chart-container">
+              <canvas id="chartRevenueRegion" aria-label="Grafik pendapatan per region" role="img"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: CHART ROW 2 — Revenue Category & Visitors per Operator
+        ============================================= -->
+        <section aria-labelledby="charts2Heading" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <h2 id="charts2Heading" class="sr-only">Pendapatan per Kategori & Pengunjung per Operator</h2>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🏷️ Revenue per Destination Category</h3>
+            <p class="text-xs text-gray-400 mb-4">Pendapatan berdasarkan kategori destinasi</p>
+            <div class="chart-container">
+              <canvas id="chartRevenueCat" aria-label="Grafik pendapatan per kategori destinasi" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🏢 Visitors per Tour Operator</h3>
+            <p class="text-xs text-gray-400 mb-4">Jumlah pengunjung per agen perjalanan</p>
+            <div class="chart-container">
+              <canvas id="chartVisitorOperator" aria-label="Grafik pengunjung per operator" role="img"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: CHART ROW 3 — Donut charts
+        ============================================= -->
+        <section aria-labelledby="charts3Heading" class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <h2 id="charts3Heading" class="sr-only">Distribusi Tipe, Pembayaran, Channel</h2>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🌍 Visitor Type</h3>
+            <p class="text-xs text-gray-400 mb-4">Distribusi tipe wisatawan</p>
+            <div class="chart-container-sm">
+              <canvas id="chartVisitorType" aria-label="Grafik distribusi tipe pengunjung" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">💳 Payment Method</h3>
+            <p class="text-xs text-gray-400 mb-4">Penggunaan metode pembayaran</p>
+            <div class="chart-container-sm">
+              <canvas id="chartPayment" aria-label="Grafik metode pembayaran" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">📡 Booking Channel</h3>
+            <p class="text-xs text-gray-400 mb-4">Distribusi channel pemesanan</p>
+            <div class="chart-container-sm">
+              <canvas id="chartChannel" aria-label="Grafik distribusi channel booking" role="img"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: CHART ROW 4 — Scatter & Top 10
+        ============================================= -->
+        <section aria-labelledby="charts4Heading" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <h2 id="charts4Heading" class="sr-only">Diskon vs Revenue & Top Destinasi</h2>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🔍 Discount vs Revenue</h3>
+            <p class="text-xs text-gray-400 mb-4">Hubungan diskon dengan total pendapatan (scatter)</p>
+            <div class="chart-container">
+              <canvas id="chartScatter" aria-label="Scatter plot diskon vs revenue" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">🏆 Top 10 Most Visited Destinations</h3>
+            <p class="text-xs text-gray-400 mb-4">Destinasi dengan pengunjung terbanyak</p>
+            <div class="chart-container">
+              <canvas id="chartTop10" aria-label="Grafik top 10 destinasi terbanyak dikunjungi" role="img"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================
+             SECTION: CHART ROW 5 — Visitors per Category
+        ============================================= -->
+        <section aria-labelledby="charts5Heading">
+          <h2 id="charts5Heading" class="sr-only">Pengunjung per Kategori Destinasi</h2>
+
+          <div class="chart-card rounded-2xl p-5">
+            <h3 class="chart-title font-semibold text-base mb-1">📂 Visitors per Destination Category</h3>
+            <p class="text-xs text-gray-400 mb-4">Total pengunjung berdasarkan kategori destinasi</p>
+            <div class="chart-container">
+              <canvas id="chartVisitorCat" aria-label="Grafik pengunjung per kategori destinasi" role="img"></canvas>
+            </div>
+          </div>
+        </section>
+
+      </div>
+      <!-- /dashboardContent -->
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-gray-400 border-t border-gray-100" role="contentinfo">
+      Wanderlytics &copy; 2024 – Tourism Intelligence Dashboard
+    </footer>
+  </div>
+  <!-- /main content wrapper -->
+
+  <!-- Script -->
+  <script src="script.js"></script>
+</body>
+</html>
